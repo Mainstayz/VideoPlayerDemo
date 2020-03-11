@@ -1,0 +1,38 @@
+﻿<Properties StartupConfiguration="{2CFD56A5-7A08-FE27-80D8-568F7B8D21BD}|">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Plugins/VideoPlayerHelper.cs">
+    <Files>
+      <File FileName="Assets/Plugins/Alert_IOS.cs" Line="11" Column="1" />
+      <File FileName="Assets/Plugins/VideoPlayerHelper.cs" Line="46" Column="30" />
+      <File FileName="Assets/Scripts/UIBindings.cs" Line="90" Column="1" />
+    </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State name="__root__">
+          <Node name="VideoPlayerDemo" expanded="True">
+            <Node name="Assets" expanded="True">
+              <Node name="Plugins" expanded="True">
+                <Node name="VideoPlayerHelper.cs" selected="True" />
+              </Node>
+              <Node name="Scripts" expanded="True" />
+            </Node>
+          </Node>
+        </State>
+      </Pad>
+      <Pad Id="MonoDevelop.Debugger.WatchPad">
+        <State />
+      </Pad>
+      <Pad Id="MonoDevelop.UnitTesting.TestPad">
+        <State name="__root__">
+          <Node name="VideoPlayerDemo" expanded="True" selected="True" />
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.ItemProperties.Assembly-CSharp PreferredExecutionTarget="2e821b51-55d6-4eba-a23d-f83d97bcde8a" />
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MultiItemStartupConfigurations />
+</Properties>
