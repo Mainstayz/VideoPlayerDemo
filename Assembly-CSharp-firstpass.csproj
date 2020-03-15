@@ -63,7 +63,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Plugins\Alert_IOS.cs" />
     <Compile Include="Assets\Plugins\VideoPlayerHelper.cs" />
     <Reference Include="Unity.TextMeshPro.Editor">
       <HintPath>/Users/pillar/Desktop/U3D/VideoPlayerDemo/Library/ScriptAssemblies/Unity.TextMeshPro.Editor.dll</HintPath>

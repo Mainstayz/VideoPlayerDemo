@@ -12,9 +12,18 @@ public class UIBindings : MonoBehaviour
     public Button playBtn;
     public Button pauseBtn;
     public Button stopBtn;
-    private VideoPlayerHelper videoPlayer;
-    private IntPtr textureId;
-    private Texture2D texture;
+
+
+    private VideoPlayerHelper mVideoPlayer = null;
+    private VideoPlayerHelper.MediaState mCurrentState = VideoPlayerHelper.MediaState.NOT_READY;
+
+    private IntPtr texPtr;
+    private bool mIsInited = false;
+    private bool mIsPrepared = false;
+
+    private bool mAppPaused = false;
+    private Texture2D mVideoTexture = null;
+
 
     // Start is called before the first frame update
     void Start()
@@ -26,80 +35,175 @@ public class UIBindings : MonoBehaviour
         pauseBtn.onClick.AddListener(Pause);
         stopBtn.onClick.AddListener(Stop);
 
-        displayLayer.gameObject.transform.rotation = Quaternion.Euler(180, 0, 0);
 
-        // 初始化播放器
-        videoPlayer = gameObject.AddComponent<VideoPlayerHelper>();
-        videoPlayer.videoPlayerInit();
-    
+        float width = displayLayer.rectTransform.rect.width;
+        float height = displayLayer.rectTransform.rect.height;
+
+        mVideoTexture = new Texture2D((int)width, (int)height, TextureFormat.RGB565, false);
+        mVideoTexture.filterMode = FilterMode.Bilinear;
+        mVideoTexture.wrapMode = TextureWrapMode.Clamp;
+
+        displayLayer.texture = mVideoTexture;
+                
+        //// 初始化播放器
+        mVideoPlayer = gameObject.AddComponent<VideoPlayerHelper>();
+        mVideoPlayer.Init();
+
+        // 注意纹理的获取时机,mVideoTexture被负载到gameobject才能获取到texturePtr
+        texPtr = mVideoTexture.GetNativeTexturePtr();
+        mVideoPlayer.SetVideoTexturePtr(texPtr);
+
+
+        HandleStateChange(VideoPlayerHelper.MediaState.NOT_READY);
+        mCurrentState = VideoPlayerHelper.MediaState.NOT_READY;
+
+
     }
 
     void TextFieldOnEndEdit(string arg0)
     {
-        
+        mVideoPlayer.Unload();
+        mIsInited = false;
     }
 
     void Prepare()
     {
         string url = inputField.text;
-        videoPlayer.videoPlayerLoad(url);
+        if (mVideoPlayer.Load(url, false, -1) == false)
+        {
+            Debug.Log("Could not initialize video player");
+            HandleStateChange(VideoPlayerHelper.MediaState.ERROR);
+            this.enabled = false;
+            return;
+        }
+        mIsInited = true;
     }
 
     void Play()
     {
-        videoPlayer.videoPlayerPlay();
+        mVideoPlayer.Play(-1);
     }
 
     void Pause()
     {
-        videoPlayer.videoPlayerPause();
+        mVideoPlayer.Pause();
     }
 
     void Stop()
     {
-        videoPlayer.videoPlayerStop();
+        mVideoPlayer.Stop();
     }
 
-
-    void UpdateTexture()
+    private void OnRenderObject()
     {
-        if (texture == null)
+
+      
+        if (mAppPaused) return;
+        if (!mIsInited) return;
+        if (!mIsPrepared)
         {
-            Debug.Log("create external texture");
-            texture = new Texture2D(0, 0, TextureFormat.RGB565, false);
-            texture.wrapMode = TextureWrapMode.Clamp;
-            texture.filterMode = FilterMode.Bilinear;
+            Debug.Log("!mIsPrepared....");
+
+            VideoPlayerHelper.MediaState state = mVideoPlayer.GetStatus();
+
+            if (state == VideoPlayerHelper.MediaState.ERROR)
+            {
+                Debug.Log("Could not load video ");
+                HandleStateChange(VideoPlayerHelper.MediaState.ERROR);
+                this.enabled = false;
+            }
+
+            else if (state < VideoPlayerHelper.MediaState.NOT_READY)
+            {
+                // Video player is ready
+
+                // Initialize the video texture
+                // Pass the video texture id to the video player
+                // TODO: GetNativeTexturePtr() call needs to be moved to Awake method to work with Oculus SDK if MT rendering is enabled
+            
+          
+                // Get the video width and height
+                int videoWidth = mVideoPlayer.GetVideoWidth();
+                int videoHeight = mVideoPlayer.GetVideoHeight();
+
+                if (videoWidth > 0 && videoHeight > 0)
+                {
+                    // Scale the video plane to match the video aspect ratio
+                    float aspect = videoHeight / (float)videoWidth;
+
+                    // Flip the plane as the video texture is mirrored on the horizontal
+                    transform.localScale = new Vector3(-0.1f, 0.1f, 0.1f * aspect);
+                }
+                // Video is prepared, ready for playback
+                mIsPrepared = true;
+                Debug.Log("Video is prepared, ready for playback");
+            }
+           
+        }
+        else
+        {
+
+            VideoPlayerHelper.MediaState state = mVideoPlayer.UpdateVideoData();
+
+            if (state == VideoPlayerHelper.MediaState.PLAYING)
+            {
+                GL.InvalidateState();
+            }
+
+            // Check for playback state change
+            if (state != mCurrentState)
+            {
+                HandleStateChange(state);
+                mCurrentState = state;
+            }
         }
 
-        texture.UpdateExternalTexture((IntPtr)textureId);
 
-        displayLayer.material.mainTexture = texture;
-
-
-        //displayLayer.texture = texture;
-
-        //if (GetComponent<RawImage>() != null)
-        //{
-        //    GetComponent<RawImage>().texture = texture;
-        //    GetComponent<RawImage>().color = Color.white;
-        //}
-        //else
-        //{
-        //    GetComponent<Renderer>().material.mainTexture = texture;
-        //}
     }
 
-
-    // Update is called once per frame
-    void Update()
+    void OnDestroy()
     {
-        textureId = videoPlayer.videoPlayerUpdateTextureIOS();
-        if ((int)textureId == 0)
+        // Deinit the video
+        mVideoPlayer.Deinit();
+    }
+
+    private void HandleStateChange(VideoPlayerHelper.MediaState newState)
+    {
+        // If the movie is playing or paused render the video texture
+        // Otherwise render the keyframe
+
+        // Display the appropriate icon, or disable if not needed
+        switch (newState)
         {
-            return;
-        } else
-        {
-            UpdateTexture();
+            case VideoPlayerHelper.MediaState.PLAYING:
+                Debug.Log("PLAYING");
+                break;
+            case VideoPlayerHelper.MediaState.READY:
+                Debug.Log("READY");
+                break;
+
+            case VideoPlayerHelper.MediaState.REACHED_END:
+                Debug.Log("REACHED_END");
+                break;
+
+            case VideoPlayerHelper.MediaState.PAUSED:
+                Debug.Log("PAUSED");
+                break;
+
+            case VideoPlayerHelper.MediaState.STOPPED:
+                Debug.Log("STOPPED");
+                break;
+
+            case VideoPlayerHelper.MediaState.NOT_READY:
+                Debug.Log("NOT_READY");
+                break;
+
+            case VideoPlayerHelper.MediaState.ERROR:
+                Debug.Log("ERROR");
+                break;
+
+            default:
+                break;
         }
     }
 }

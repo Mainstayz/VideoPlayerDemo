@@ -6,20 +6,35 @@ using UnityEngine;
 
 public class VideoPlayerHelper : MonoBehaviour
 {
-    // Start is called before the first frame update
+    #region NESTED
+    public enum MediaState
+    {
+        REACHED_END,
+        PAUSED,
+        STOPPED,
+        PLAYING,
+        READY,
+        NOT_READY,
+        ERROR,
+    }
+    #endregion
+
     private IntPtr mVideoPlayerPtr = IntPtr.Zero;
 
     [DllImport("__Internal")]
     private static extern IntPtr videoPlayerInitIOS();
 
     [DllImport("__Internal")]
-    private static extern void videoPlayerDeinitIOS(IntPtr videoPlayerPtr);
+    private static extern bool videoPlayerDeinitIOS(IntPtr videoPlayerPtr);
 
     [DllImport("__Internal")]
-    private static extern bool videoPlayerLoadIOS(IntPtr videoPlayerPtr, string filename);
+    private static extern bool videoPlayerLoadIOS(IntPtr videoPlayerPtr, string filename, bool playOnTextureImmediately, float seekPosition);
 
     [DllImport("__Internal")]
     private static extern bool videoPlayerUnloadIOS(IntPtr videoPlayerPtr);
+
+    [DllImport("__Internal")]
+    private static extern bool videoPlayerSetVideoTexturePtrIOS(IntPtr videoPlayerPtr, IntPtr texturePtr);
 
     [DllImport("__Internal")]
     private static extern int videoPlayerGetStatusIOS(IntPtr videoPlayerPtr);
@@ -34,7 +49,7 @@ public class VideoPlayerHelper : MonoBehaviour
     private static extern float videoPlayerGetLengthIOS(IntPtr videoPlayerPtr);
 
     [DllImport("__Internal")]
-    private static extern bool videoPlayerPlayIOS(IntPtr videoPlayerPtr);
+    private static extern bool videoPlayerPlayIOS(IntPtr videoPlayerPtr, float seekPosition);
 
     [DllImport("__Internal")]
     private static extern bool videoPlayerPauseIOS(IntPtr videoPlayerPtr);
@@ -43,7 +58,7 @@ public class VideoPlayerHelper : MonoBehaviour
     private static extern bool videoPlayerStopIOS(IntPtr videoPlayerPtr);
 
     [DllImport("__Internal")]
-    private static extern IntPtr videoPlayerUpdateTextureIOS(IntPtr videoPlayerPtr);
+    private static extern int videoPlayerUpdateVideoDataIOS(IntPtr videoPlayerPtr);
 
     [DllImport("__Internal")]
     private static extern bool videoPlayerSeekToIOS(IntPtr videoPlayerPtr, float position);
@@ -52,82 +67,225 @@ public class VideoPlayerHelper : MonoBehaviour
     private static extern float videoPlayerGetCurrentPositionIOS(IntPtr videoPlayerPtr);
 
     [DllImport("__Internal")]
-    private static extern void videoPlayerSetVolumeIOS(IntPtr videoPlayerPtr, float value);
+    private static extern bool videoPlayerSetVolumeIOS(IntPtr videoPlayerPtr, float value);
+
+    [DllImport("__Internal")]
+    private static extern int videoPlayerGetCurrentBufferingPercentageIOS(IntPtr videoPlayerPtr);
+
+    
+    [DllImport("__Internal")]
+    private static extern IntPtr createVideoTextureIdIOS(IntPtr videoPlayerPtr);
+
+    [DllImport("__Internal")]
+    private static extern IntPtr getVideoTextureIdIOS(IntPtr videoPlayerPtr);
 
 
-    public bool videoPlayerInit()
+    private bool videoPlayerInit()
     {
         mVideoPlayerPtr = videoPlayerInitIOS();
         return mVideoPlayerPtr != IntPtr.Zero;
     }
 
-    public void videoPlayerDeinit()
+    private bool videoPlayerDeinit()
     {
-        videoPlayerDeinitIOS(mVideoPlayerPtr);
+        bool result = videoPlayerDeinitIOS(mVideoPlayerPtr);
         mVideoPlayerPtr = IntPtr.Zero;
+        return result;
     }
 
-    public bool videoPlayerLoad(string filename)
+    private bool videoPlayerLoad(string filename, bool playOnTextureImmediately, float seekPosition)
     {
-        return videoPlayerLoadIOS(mVideoPlayerPtr, filename);
+        return videoPlayerLoadIOS(mVideoPlayerPtr, filename, playOnTextureImmediately, seekPosition);
     }
 
-    public bool videoPlayerUnload()
+    private bool videoPlayerUnload()
     {
         return videoPlayerUnloadIOS(mVideoPlayerPtr);
     }
 
-    public int videoPlayerGetStatus()
+    private bool videoPlayerSetVideoTexturePtr(IntPtr texturePtr)
+    {
+        return videoPlayerSetVideoTexturePtrIOS(mVideoPlayerPtr, texturePtr);
+    }
+
+    private int videoPlayerGetStatus()
     {
         return videoPlayerGetStatusIOS(mVideoPlayerPtr);
     }
 
-    public int videoPlayerGetVideoWidth()
+    private int videoPlayerGetVideoWidth()
     {
         return videoPlayerGetVideoWidthIOS(mVideoPlayerPtr);
     }
 
-    public int videoPlayerGetVideoHeight()
+    private int videoPlayerGetVideoHeight()
     {
         return videoPlayerGetVideoHeightIOS(mVideoPlayerPtr);
     }
 
-    public float videoPlayerGetLength()
+    private float videoPlayerGetLength()
     {
         return videoPlayerGetLengthIOS(mVideoPlayerPtr);
     }
 
-    public bool videoPlayerPlay()
+    private bool videoPlayerPlay(float seekPosition)
     {
-        return videoPlayerPlayIOS(mVideoPlayerPtr);
+        return videoPlayerPlayIOS(mVideoPlayerPtr, seekPosition);
     }
 
-    public bool videoPlayerPause()
+    private bool videoPlayerPause()
     {
         return videoPlayerPauseIOS(mVideoPlayerPtr);
     }
 
-    public bool videoPlayerStop()
+    private bool videoPlayerStop()
     {
         return videoPlayerStopIOS(mVideoPlayerPtr);
     }
 
-    public IntPtr videoPlayerUpdateTextureIOS()
+    private int videoPlayerUpdateVideoData()
     {
-        return videoPlayerUpdateTextureIOS(mVideoPlayerPtr);
+        return videoPlayerUpdateVideoDataIOS(mVideoPlayerPtr);
     }
-    public bool videoPlayerSeekTo(float position)
+
+    private bool videoPlayerSeekTo(float position)
     {
         return videoPlayerSeekToIOS(mVideoPlayerPtr, position);
     }
 
-    public float videoPlayerGetCurrentPosition()
+    private float videoPlayerGetCurrentPosition()
     {
         return videoPlayerGetCurrentPositionIOS(mVideoPlayerPtr);
     }
 
-    public void videoPlayerSetVolume(float value)
+    private bool videoPlayerSetVolume(float value)
     {
-        videoPlayerSetVolumeIOS(mVideoPlayerPtr, value);
+        return videoPlayerSetVolumeIOS(mVideoPlayerPtr, value);
     }
+
+    private int videoPlayerGetCurrentBufferingPercentage()
+    {
+        return videoPlayerGetCurrentBufferingPercentageIOS(mVideoPlayerPtr);
+    }
+
+    private IntPtr createVideoTextureId()
+    {
+        return createVideoTextureIdIOS(mVideoPlayerPtr);
+    }
+
+    private IntPtr getVideoTextureId()
+    {
+        return getVideoTextureIdIOS(mVideoPlayerPtr);
+    }
+
+    #region PRIVATE_METHODS
+
+    private string mFilename = null;
+
+    #endregion
+
+    #region PUBLIC_METHODS
+
+    public void SetFilename(string filename)
+    {
+
+        mFilename = filename;
+    }
+
+    public bool Init()
+    {
+        return videoPlayerInit();
+    }
+
+    public bool Deinit()
+    {
+        return videoPlayerDeinit();
+    }
+
+    public bool Load(string filename, bool playOnTextureImmediately, float seekPosition)
+    {
+        SetFilename(filename);
+        return videoPlayerLoad(mFilename, playOnTextureImmediately, seekPosition);
+    }
+
+    public bool Unload()
+    {
+        return videoPlayerUnload();
+    }
+
+    public bool SetVideoTexturePtr(IntPtr texturePtr)
+    {
+        return videoPlayerSetVideoTexturePtr(texturePtr);
+    }
+
+    public MediaState GetStatus()
+    {
+        return (MediaState)videoPlayerGetStatus();
+    }
+
+    public int GetVideoWidth()
+    {
+        return videoPlayerGetVideoWidth();
+    }
+
+    public int GetVideoHeight()
+    {
+        return videoPlayerGetVideoHeight();
+    }
+
+    public float GetLength()
+    {
+        return videoPlayerGetLength();
+    }
+
+    public bool Play(float seekPosition)
+    {
+        return videoPlayerPlay(seekPosition);
+    }
+
+    public bool Pause()
+    {
+        return videoPlayerPause();
+    }
+
+    public bool Stop()
+    {
+        return videoPlayerStop();
+    }
+
+    public MediaState UpdateVideoData()
+    {
+        return (MediaState)videoPlayerUpdateVideoData();
+    }
+
+    public bool SeekTo(float position)
+    {
+        return videoPlayerSeekTo(position);
+    }
+
+    public float GetCurrentPosition()
+    {
+        return videoPlayerGetCurrentPosition();
+    }
+
+    public bool SetVolume(float value)
+    {
+        return videoPlayerSetVolume(value);
+    }
+
+    public int GetCurrentBufferingPercentage()
+    {
+        return videoPlayerGetCurrentBufferingPercentage();
+    }
+
+    public IntPtr CreatVideoTextureId()
+    {
+        return createVideoTextureId();
+    }
+
+    public IntPtr GetVideoTextureId()
+    {
+        return getVideoTextureId();
+    }
+    #endregion
 }
