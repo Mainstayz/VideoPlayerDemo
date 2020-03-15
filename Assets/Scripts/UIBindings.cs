@@ -6,18 +6,30 @@ using UnityEngine.UI;
 
 public class UIBindings : MonoBehaviour
 {
+    // UI
     public RawImage displayLayer;
     public InputField inputField;
+   
     public Button prepareBtn;
     public Button playBtn;
     public Button pauseBtn;
     public Button stopBtn;
+    public Button clearBtn;
+
+    public Text scrollText;
+    public GameObject scrollPanel;
+
+    public Text progressText;
+    public Slider progressSlider;
+
+    public Text volumeText;
+    public Slider volumeSlider;
 
 
     private VideoPlayerHelper mVideoPlayer = null;
     private VideoPlayerHelper.MediaState mCurrentState = VideoPlayerHelper.MediaState.NOT_READY;
 
-    private IntPtr texPtr;
+    private IntPtr texPtr = IntPtr.Zero;
     private bool mIsInited = false;
     private bool mIsPrepared = false;
 
@@ -34,6 +46,17 @@ public class UIBindings : MonoBehaviour
         playBtn.onClick.AddListener(Play);
         pauseBtn.onClick.AddListener(Pause);
         stopBtn.onClick.AddListener(Stop);
+        clearBtn.onClick.AddListener(ClearLog);
+
+        progressSlider.minValue = 0.0f;
+        progressSlider.value = 0.0f;
+        progressSlider.GetComponent<SliderDrag>().EndDrag = progressSliderValueDidChange;
+
+
+        volumeSlider.minValue = 0.0f;
+        volumeSlider.maxValue = 1.0f;
+        volumeSlider.value = 1.0f;
+        volumeSlider.GetComponent<SliderDrag>().EndDrag = volumeSliderValueDidChange;
 
 
         float width = displayLayer.rectTransform.rect.width;
@@ -44,7 +67,7 @@ public class UIBindings : MonoBehaviour
         mVideoTexture.wrapMode = TextureWrapMode.Clamp;
 
         displayLayer.texture = mVideoTexture;
-                
+
         //// 初始化播放器
         mVideoPlayer = gameObject.AddComponent<VideoPlayerHelper>();
         mVideoPlayer.Init();
@@ -60,6 +83,21 @@ public class UIBindings : MonoBehaviour
 
     }
 
+    void pushMsg(string msg)
+    {
+        StartCoroutine(coroutineAddMsg(msg));
+    }
+
+    IEnumerator coroutineAddMsg(string msg)
+    {
+        scrollText.text += msg + "\n";
+        yield return new WaitForEndOfFrame();
+        scrollPanel.GetComponent<ScrollRect>().verticalNormalizedPosition = 0f;
+
+    }
+
+    #region haha
+
     void TextFieldOnEndEdit(string arg0)
     {
         mVideoPlayer.Unload();
@@ -71,7 +109,7 @@ public class UIBindings : MonoBehaviour
         string url = inputField.text;
         if (mVideoPlayer.Load(url, false, -1) == false)
         {
-            Debug.Log("Could not initialize video player");
+            pushMsg("Could not initialize video player");
             HandleStateChange(VideoPlayerHelper.MediaState.ERROR);
             this.enabled = false;
             return;
@@ -94,6 +132,25 @@ public class UIBindings : MonoBehaviour
         mVideoPlayer.Stop();
     }
 
+    void ClearLog()
+    {
+        scrollText.text = "";
+    }
+
+    void progressSliderValueDidChange()
+    {
+        mVideoPlayer.SeekTo((int)progressSlider.value);  
+    }
+
+    void volumeSliderValueDidChange()
+    {
+        volumeText.text = "音量：" + volumeSlider.value.ToString("0.##");
+        mVideoPlayer.SetVolume(volumeSlider.value);
+
+    }
+
+    #endregion
+
     private void OnRenderObject()
     {
 
@@ -102,13 +159,13 @@ public class UIBindings : MonoBehaviour
         if (!mIsInited) return;
         if (!mIsPrepared)
         {
-            Debug.Log("!mIsPrepared....");
+            pushMsg("!mIsPrepared....");
 
             VideoPlayerHelper.MediaState state = mVideoPlayer.GetStatus();
 
             if (state == VideoPlayerHelper.MediaState.ERROR)
             {
-                Debug.Log("Could not load video ");
+                pushMsg("Could not load video ");
                 HandleStateChange(VideoPlayerHelper.MediaState.ERROR);
                 this.enabled = false;
             }
@@ -116,13 +173,6 @@ public class UIBindings : MonoBehaviour
             else if (state < VideoPlayerHelper.MediaState.NOT_READY)
             {
                 // Video player is ready
-
-                // Initialize the video texture
-                // Pass the video texture id to the video player
-                // TODO: GetNativeTexturePtr() call needs to be moved to Awake method to work with Oculus SDK if MT rendering is enabled
-            
-          
-                // Get the video width and height
                 int videoWidth = mVideoPlayer.GetVideoWidth();
                 int videoHeight = mVideoPlayer.GetVideoHeight();
 
@@ -136,7 +186,7 @@ public class UIBindings : MonoBehaviour
                 }
                 // Video is prepared, ready for playback
                 mIsPrepared = true;
-                Debug.Log("Video is prepared, ready for playback");
+                pushMsg("Video is prepared, ready for playback");
             }
            
         }
@@ -148,9 +198,11 @@ public class UIBindings : MonoBehaviour
             if (state == VideoPlayerHelper.MediaState.PLAYING)
             {
                 GL.InvalidateState();
+                // Update Video Info
+                UpdateVideoInfo();
+
             }
 
-            // Check for playback state change
             if (state != mCurrentState)
             {
                 HandleStateChange(state);
@@ -158,6 +210,16 @@ public class UIBindings : MonoBehaviour
             }
         }
 
+
+    }
+
+
+    void UpdateVideoInfo() {
+        progressSlider.maxValue = (int)mVideoPlayer.GetLength();
+        progressSlider.value = (int)mVideoPlayer.GetCurrentPosition();
+        progressText.text = "进度：" + progressSlider.value + " / " + progressSlider.maxValue;
+        string msg = "缓冲百分比 ==> " + mVideoPlayer.GetCurrentBufferingPercentage();
+        pushMsg(msg);
 
     }
 
@@ -169,37 +231,34 @@ public class UIBindings : MonoBehaviour
 
     private void HandleStateChange(VideoPlayerHelper.MediaState newState)
     {
-        // If the movie is playing or paused render the video texture
-        // Otherwise render the keyframe
-
-        // Display the appropriate icon, or disable if not needed
+    
         switch (newState)
         {
             case VideoPlayerHelper.MediaState.PLAYING:
-                Debug.Log("PLAYING");
+                pushMsg("PLAYING");
                 break;
             case VideoPlayerHelper.MediaState.READY:
-                Debug.Log("READY");
+                pushMsg("READY");
                 break;
 
             case VideoPlayerHelper.MediaState.REACHED_END:
-                Debug.Log("REACHED_END");
+                pushMsg("REACHED_END");
                 break;
 
             case VideoPlayerHelper.MediaState.PAUSED:
-                Debug.Log("PAUSED");
+                pushMsg("PAUSED");
                 break;
 
             case VideoPlayerHelper.MediaState.STOPPED:
-                Debug.Log("STOPPED");
+                pushMsg("STOPPED");
                 break;
 
             case VideoPlayerHelper.MediaState.NOT_READY:
-                Debug.Log("NOT_READY");
+                pushMsg("NOT_READY");
                 break;
 
             case VideoPlayerHelper.MediaState.ERROR:
-                Debug.Log("ERROR");
+                pushMsg("ERROR");
                 break;
 
             default:
